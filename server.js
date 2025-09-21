@@ -31,14 +31,45 @@ app.use(mongoSanitize());
 
 // CORS configuration
 const corsOptions = {
-  origin: [
-    process.env.FRONTEND_URL || "http://localhost:3000",
-    "https://your-frontend-domain.vercel.app", // Add your frontend domain here
-  ],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+
+    const allowedOrigins = [
+      process.env.FRONTEND_URL,
+      "http://localhost:5173",
+      "http://localhost:3001",
+      "https://plentyevents-frontend.vercel.app",
+      "https://localhost:3000",
+      /\.vercel\.app$/,
+      /\.netlify\.app$/,
+    ];
+
+    const isAllowed = allowedOrigins.some((allowedOrigin) => {
+      if (typeof allowedOrigin === "string") {
+        return allowedOrigin === origin;
+      }
+      return allowedOrigin.test(origin);
+    });
+
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.log("CORS blocked origin:", origin);
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
   credentials: true,
   optionsSuccessStatus: 200,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "x-auth-token"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "x-auth-token",
+    "Origin",
+    "X-Requested-With",
+    "Accept",
+  ],
 };
 app.use(cors(corsOptions));
 
@@ -73,6 +104,26 @@ app.get("/", (req, res) => {
     message: "Plenty Events API is running!",
     version: "1.0.0",
     environment: process.env.NODE_ENV,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+app.get("/api", (req, res) => {
+  res.json({
+    success: true,
+    message: "Plenty Events API is running!",
+    version: "1.0.0",
+    environment: process.env.NODE_ENV,
+    endpoints: {
+      auth: "/api/auth",
+      vendors: "/api/vendors",
+      waiters: "/api/waiters",
+      admin: "/api/admin",
+      ratings: "/api/ratings",
+      categories: "/api/categories",
+      expertise: "/api/expertise",
+      events: "/api/events",
+    },
   });
 });
 
@@ -81,6 +132,8 @@ app.get("/api/health", (req, res) => {
     success: true,
     message: "API is healthy",
     timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
   });
 });
 
